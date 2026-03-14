@@ -1,0 +1,1 @@
+// Avatar feature — domain layer.

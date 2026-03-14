@@ -1,0 +1,1 @@
+// Designer feature — domain layer.

@@ -1,0 +1,67 @@
+name: fitcraft
+description: "FitCraft — 3D body scanning & AI-powered virtual try-on"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation
+  go_router: ^14.8.1
+
+  # HTTP Client
+  dio: ^5.7.0
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # Models / Serialization
+  freezed_annotation: ^3.0.0
+  json_annotation: ^4.9.0
+
+  # Utils
+  path_provider: ^2.1.5
+  cached_network_image: ^3.4.1
+  image_picker: ^1.1.2
+
+  # ───────────────────────────────────────────────────────
+  # The following will be added back when their project
+  # configs are ready:
+  #   firebase_core, firebase_auth, firebase_storage
+  #   google_sign_in, supabase_flutter
+  #   google_mlkit_pose_detection, camera
+  # ───────────────────────────────────────────────────────
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+  # Code Generation
+  build_runner: ^2.4.14
+  freezed: ^3.0.0
+  json_serializable: ^6.9.4
+  riverpod_generator: ^2.6.5
+  riverpod_lint: ^2.6.5
+  custom_lint: ^0.7.5
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/
