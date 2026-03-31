@@ -30,7 +30,6 @@ Implemented and working at project level:
 - measurement preview UI
 
 ### Phase 2 — AI Virtual Try-On
-**Done**
 
 Implemented and reported working end-to-end:
 - OOTDiffusion virtual try-on flow
