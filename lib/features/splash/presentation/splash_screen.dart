@@ -1,42 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:fitcraft/app/router.dart';
 import 'package:fitcraft/core/utils/theme.dart';
+import 'package:fitcraft/features/splash/presentation/splash_strings.dart';
+import 'package:fitcraft/features/splash/state/splash_navigation_provider.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(splashDelayProvider, (_, next) {
+      next.whenOrNull(
+        data: (_) => context.go(AppRoutes.login),
+      );
+    });
 
-class _SplashScreenState extends State<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    _navigateToNext();
-  }
-
-  Future<void> _navigateToNext() async {
-    // Wait for the GIF animation to play for a distinct duration
-    await Future.delayed(const Duration(milliseconds: 2800));
-    
-    // Safely navigate away to the login route. The router's
-    // redirect guard will automatically send the user to the
-    // dashboard if they are already authenticated!
-    if (mounted) {
-      context.go(AppRoutes.login);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
       body: Center(
         child: Image.asset(
-          'assets/images/splash_image.gif',
-          width: 100, // Reduced from 250 to make it smaller and sharper
+          SplashStrings.splashAssetPath,
+          width: SplashStrings.splashImageWidth,
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,
         ),

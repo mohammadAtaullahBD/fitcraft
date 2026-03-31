@@ -1,12 +1,16 @@
-import 'dart:math';
-import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'package:camera/camera.dart';
-import 'package:fitcraft/features/scan/domain/body_measurements.dart';
 import 'package:flutter/foundation.dart';
+import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
+import 'package:fitcraft/features/scan/domain/body_measurements.dart';
+import 'package:fitcraft/features/scan/domain/body_scan_constants.dart';
+import 'package:fitcraft/features/scan/domain/body_scan_geometry.dart';
+import 'package:fitcraft/features/scan/domain/body_scan_landmarks.dart';
 
 class BodyScanException implements Exception {
   final String message;
+
   BodyScanException(this.message);
+
   @override
   String toString() => message;
 }
@@ -22,100 +26,139 @@ class BodyScanService {
           ),
         );
 
-  /// Performs ML Kit pose detection on the front and side photos.
+  /// Performs pose detection and returns estimated body measurements.
   Future<BodyMeasurements> processPhotos({
     required XFile frontPhoto,
     required XFile sidePhoto,
   }) async {
     try {
-      final frontInput = InputImage.fromFilePath(frontPhoto.path);
-      // Currently, side photo is passed for future architectural symmetry, 
-      // but ML Kit base pose gets most dimensions from the front profile.
-      // We will primarily analyze the front image for these 4 metrics.
-      
-      final poses = await _poseDetector.processImage(frontInput);
-      
-      if (poses.isEmpty) {
-        throw BodyScanException('No person detected in the photo. Please ensure your full body is visible.');
-      }
-
-      final pose = poses.first;
-      
-      // Print all 33 landmarks to the debug console as requested!
-      if (kDebugMode) {
-        print('--- RAW 33 POSE LANDMARKS ---');
-        for (final entry in pose.landmarks.entries) {
-          final type = entry.key;
-          final landmark = entry.value;
-          print('${type.name}: x=${landmark.x.toStringAsFixed(1)}, y=${landmark.y.toStringAsFixed(1)}, z=${landmark.z.toStringAsFixed(1)}, likelihood=${landmark.likelihood}');
-        }
-        print('-----------------------------');
-      }
-
-      // 1. Extract required landmarks
-      final leftShoulder = pose.landmarks[PoseLandmarkType.leftShoulder];
-      final rightShoulder = pose.landmarks[PoseLandmarkType.rightShoulder];
-      final leftHip = pose.landmarks[PoseLandmarkType.leftHip];
-      final rightHip = pose.landmarks[PoseLandmarkType.rightHip];
-      final nose = pose.landmarks[PoseLandmarkType.nose];
-      final leftAnkle = pose.landmarks[PoseLandmarkType.leftAnkle];
-      final rightAnkle = pose.landmarks[PoseLandmarkType.rightAnkle];
-
-      // Ensure critical landmarks are detected with high confidence
-      if (leftShoulder == null || rightShoulder == null || 
-          leftHip == null || rightHip == null || 
-          nose == null || leftAnkle == null || rightAnkle == null) {
-        throw BodyScanException('Could not clearly see all necessary body parts. Please step back and ensure you are well-lit.');
-      }
-
-      // 2. Calculate pixel distances
-      final shoulderPixelWidth = _distanceBetween(leftShoulder, rightShoulder);
-      final hipPixelWidth = _distanceBetween(leftHip, rightHip);
-      
-      final midShoulder = _midPoint(leftShoulder, rightShoulder);
-      final midHip = _midPoint(leftHip, rightHip);
-      final torsoPixelLength = _distance(midShoulder, midHip);
-      
-      final midAnkle = _midPoint(leftAnkle, rightAnkle);
-      // Approximate top of head assuming nose is somewhat below the crown
-      final headTopY = nose.y - (_distanceBetween(leftShoulder, rightShoulder) * 0.4); 
-      final estimatedPixelHeight = (midAnkle.y - headTopY).abs();
-
-      // 3. Convert pixel units to centimeters.
-      // NOTE: Without a known reference object (like an A4 paper or coin) or a depth map, 
-      // ML Kit bounding box pixels cannot map accurately to real-world metric values.
-      // For this prototype, we'll assume a standard heuristic scale: 
-      // e.g. the average human height is ~170cm.
-      final pixelToCmRatio = 170.0 / estimatedPixelHeight;
-
-      return BodyMeasurements(
-        shoulderWidth: double.parse((shoulderPixelWidth * pixelToCmRatio).toStringAsFixed(1)),
-        hipWidth: double.parse((hipPixelWidth * pixelToCmRatio).toStringAsFixed(1)),
-        torsoLength: double.parse((torsoPixelLength * pixelToCmRatio).toStringAsFixed(1)),
-        estimatedHeight: double.parse((estimatedPixelHeight * pixelToCmRatio).toStringAsFixed(1)),
+      final frontPose = await _extractFrontPose(frontPhoto);
+      _debugLogPoseLandmarks(frontPose);
+      validateRequiredBodyScanLandmarks(frontPose);
+      return _buildMeasurements(frontPose, sidePhoto.path);
+    } catch (error) {
+      if (error is BodyScanException) rethrow;
+      throw BodyScanException(
+        '${BodyScanConstants.genericProcessingFailurePrefix} $error',
       );
-
-    } catch (e) {
-      if (e is BodyScanException) rethrow;
-      throw BodyScanException('Failed to process image: ${e.toString()}');
     }
   }
 
+  /// Releases the underlying ML Kit detector resources.
   void dispose() {
     _poseDetector.close();
   }
 
-  // --- Math Helpers ---
+  /// Extracts the primary front-facing pose from the provided photo.
+  Future<Pose> _extractFrontPose(XFile frontPhoto) async {
+    final inputImage = InputImage.fromFilePath(frontPhoto.path);
+    final poses = await _poseDetector.processImage(inputImage);
 
-  double _distanceBetween(PoseLandmark p1, PoseLandmark p2) {
-    return sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
-  }
-  
-  double _distance(Point<double> p1, Point<double> p2) {
-    return sqrt(pow(p2.x - p1.x, 2) + pow(p2.y - p1.y, 2));
+    if (poses.isEmpty) {
+      throw BodyScanException(BodyScanConstants.noPersonDetectedMessage);
+    }
+
+    return poses.first;
   }
 
-  Point<double> _midPoint(PoseLandmark p1, PoseLandmark p2) {
-    return Point((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+  /// Logs all detected pose landmarks during debug builds.
+  void _debugLogPoseLandmarks(Pose pose) {
+    if (!kDebugMode) return;
+
+    debugPrint('--- RAW 33 POSE LANDMARKS ---');
+    for (final entry in pose.landmarks.entries) {
+      final landmark = entry.value;
+      debugPrint(
+        '${entry.key.name}: '
+        'x=${landmark.x.toStringAsFixed(1)}, '
+        'y=${landmark.y.toStringAsFixed(1)}, '
+        'z=${landmark.z.toStringAsFixed(1)}, '
+        'likelihood=${landmark.likelihood}',
+      );
+    }
+    debugPrint('-----------------------------');
+  }
+
+  /// Builds the final body-measurement model from a validated pose.
+  BodyMeasurements _buildMeasurements(Pose pose, String sidePhotoPath) {
+    final leftShoulder =
+        requiredBodyScanLandmark(pose, PoseLandmarkType.leftShoulder);
+    final rightShoulder =
+        requiredBodyScanLandmark(pose, PoseLandmarkType.rightShoulder);
+    final leftHip = requiredBodyScanLandmark(pose, PoseLandmarkType.leftHip);
+    final rightHip = requiredBodyScanLandmark(pose, PoseLandmarkType.rightHip);
+    final nose = requiredBodyScanLandmark(pose, PoseLandmarkType.nose);
+    final leftAnkle =
+        requiredBodyScanLandmark(pose, PoseLandmarkType.leftAnkle);
+    final rightAnkle =
+        requiredBodyScanLandmark(pose, PoseLandmarkType.rightAnkle);
+
+    final shoulderPixelWidth =
+        distanceBetweenLandmarks(leftShoulder, rightShoulder);
+    final hipPixelWidth = distanceBetweenLandmarks(leftHip, rightHip);
+    final torsoPixelLength = _calculateTorsoLength(
+      leftShoulder,
+      rightShoulder,
+      leftHip,
+      rightHip,
+    );
+    final estimatedPixelHeight = _calculateEstimatedPixelHeight(
+      nose: nose,
+      leftShoulder: leftShoulder,
+      rightShoulder: rightShoulder,
+      leftAnkle: leftAnkle,
+      rightAnkle: rightAnkle,
+    );
+    final pixelToCmRatio = _pixelToCmRatio(estimatedPixelHeight, sidePhotoPath);
+
+    return BodyMeasurements(
+      shoulderWidth: _roundMeasurement(shoulderPixelWidth * pixelToCmRatio),
+      hipWidth: _roundMeasurement(hipPixelWidth * pixelToCmRatio),
+      torsoLength: _roundMeasurement(torsoPixelLength * pixelToCmRatio),
+      estimatedHeight: _roundMeasurement(estimatedPixelHeight * pixelToCmRatio),
+    );
+  }
+
+  /// Calculates torso length using shoulder and hip midpoints.
+  double _calculateTorsoLength(
+    PoseLandmark leftShoulder,
+    PoseLandmark rightShoulder,
+    PoseLandmark leftHip,
+    PoseLandmark rightHip,
+  ) {
+    final midShoulder = midpointBetweenLandmarks(leftShoulder, rightShoulder);
+    final midHip = midpointBetweenLandmarks(leftHip, rightHip);
+    return distanceBetweenPoints(midShoulder, midHip);
+  }
+
+  /// Estimates full body height from head-top heuristic to ankle midpoint.
+  double _calculateEstimatedPixelHeight({
+    required PoseLandmark nose,
+    required PoseLandmark leftShoulder,
+    required PoseLandmark rightShoulder,
+    required PoseLandmark leftAnkle,
+    required PoseLandmark rightAnkle,
+  }) {
+    final shoulderWidth = distanceBetweenLandmarks(leftShoulder, rightShoulder);
+    final headTopY = nose.y -
+        (shoulderWidth * BodyScanConstants.headTopOffsetFromShoulderRatio);
+    final ankleMidpoint = midpointBetweenLandmarks(leftAnkle, rightAnkle);
+    return (ankleMidpoint.y - headTopY).abs();
+  }
+
+  /// Converts pixel units into approximate centimeters using a heuristic scale.
+  double _pixelToCmRatio(double estimatedPixelHeight, String sidePhotoPath) {
+    if (kDebugMode) {
+      debugPrint('Side photo captured for future processing: $sidePhotoPath');
+    }
+
+    return BodyScanConstants.defaultEstimatedHeightCm / estimatedPixelHeight;
+  }
+
+  /// Rounds a measurement to the configured precision.
+  double _roundMeasurement(double value) {
+    return double.parse(
+      value.toStringAsFixed(BodyScanConstants.measurementPrecisionDigits),
+    );
   }
 }

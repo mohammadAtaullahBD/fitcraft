@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$UserModel {
 
- String get uid; String get email; String get displayName; String? get photoUrl; DateTime? get createdAt; DateTime? get updatedAt;
+ String get uid; String get email;@JsonKey(name: 'display_name') String get displayName;@JsonKey(name: 'photo_url') String? get photoUrl;@JsonKey(name: 'created_at') DateTime? get createdAt;@JsonKey(name: 'updated_at') DateTime? get updatedAt;
 /// Create a copy of UserModel
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -48,7 +48,7 @@ abstract mixin class $UserModelCopyWith<$Res>  {
   factory $UserModelCopyWith(UserModel value, $Res Function(UserModel) _then) = _$UserModelCopyWithImpl;
 @useResult
 $Res call({
- String uid, String email, String displayName, String? photoUrl, DateTime? createdAt, DateTime? updatedAt
+ String uid, String email,@JsonKey(name: 'display_name') String displayName,@JsonKey(name: 'photo_url') String? photoUrl,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt
 });
 
 
@@ -158,7 +158,7 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String uid,  String email,  String displayName,  String? photoUrl,  DateTime? createdAt,  DateTime? updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String uid,  String email, @JsonKey(name: 'display_name')  String displayName, @JsonKey(name: 'photo_url')  String? photoUrl, @JsonKey(name: 'created_at')  DateTime? createdAt, @JsonKey(name: 'updated_at')  DateTime? updatedAt)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _UserModel() when $default != null:
 return $default(_that.uid,_that.email,_that.displayName,_that.photoUrl,_that.createdAt,_that.updatedAt);case _:
@@ -179,7 +179,7 @@ return $default(_that.uid,_that.email,_that.displayName,_that.photoUrl,_that.cre
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String uid,  String email,  String displayName,  String? photoUrl,  DateTime? createdAt,  DateTime? updatedAt)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String uid,  String email, @JsonKey(name: 'display_name')  String displayName, @JsonKey(name: 'photo_url')  String? photoUrl, @JsonKey(name: 'created_at')  DateTime? createdAt, @JsonKey(name: 'updated_at')  DateTime? updatedAt)  $default,) {final _that = this;
 switch (_that) {
 case _UserModel():
 return $default(_that.uid,_that.email,_that.displayName,_that.photoUrl,_that.createdAt,_that.updatedAt);case _:
@@ -199,7 +199,7 @@ return $default(_that.uid,_that.email,_that.displayName,_that.photoUrl,_that.cre
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String uid,  String email,  String displayName,  String? photoUrl,  DateTime? createdAt,  DateTime? updatedAt)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String uid,  String email, @JsonKey(name: 'display_name')  String displayName, @JsonKey(name: 'photo_url')  String? photoUrl, @JsonKey(name: 'created_at')  DateTime? createdAt, @JsonKey(name: 'updated_at')  DateTime? updatedAt)?  $default,) {final _that = this;
 switch (_that) {
 case _UserModel() when $default != null:
 return $default(_that.uid,_that.email,_that.displayName,_that.photoUrl,_that.createdAt,_that.updatedAt);case _:
@@ -213,16 +213,16 @@ return $default(_that.uid,_that.email,_that.displayName,_that.photoUrl,_that.cre
 /// @nodoc
 @JsonSerializable()
 
-class _UserModel extends UserModel {
-   _UserModel({required this.uid, required this.email, required this.displayName, this.photoUrl, this.createdAt, this.updatedAt}): super._();
+class _UserModel implements UserModel {
+  const _UserModel({required this.uid, required this.email, @JsonKey(name: 'display_name') this.displayName = '', @JsonKey(name: 'photo_url') this.photoUrl, @JsonKey(name: 'created_at') this.createdAt, @JsonKey(name: 'updated_at') this.updatedAt});
   factory _UserModel.fromJson(Map<String, dynamic> json) => _$UserModelFromJson(json);
 
 @override final  String uid;
 @override final  String email;
-@override final  String displayName;
-@override final  String? photoUrl;
-@override final  DateTime? createdAt;
-@override final  DateTime? updatedAt;
+@override@JsonKey(name: 'display_name') final  String displayName;
+@override@JsonKey(name: 'photo_url') final  String? photoUrl;
+@override@JsonKey(name: 'created_at') final  DateTime? createdAt;
+@override@JsonKey(name: 'updated_at') final  DateTime? updatedAt;
 
 /// Create a copy of UserModel
 /// with the given fields replaced by the non-null parameter values.
@@ -257,7 +257,7 @@ abstract mixin class _$UserModelCopyWith<$Res> implements $UserModelCopyWith<$Re
   factory _$UserModelCopyWith(_UserModel value, $Res Function(_UserModel) _then) = __$UserModelCopyWithImpl;
 @override @useResult
 $Res call({
- String uid, String email, String displayName, String? photoUrl, DateTime? createdAt, DateTime? updatedAt
+ String uid, String email,@JsonKey(name: 'display_name') String displayName,@JsonKey(name: 'photo_url') String? photoUrl,@JsonKey(name: 'created_at') DateTime? createdAt,@JsonKey(name: 'updated_at') DateTime? updatedAt
 });
 
 

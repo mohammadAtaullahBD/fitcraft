@@ -2,11 +2,12 @@ import 'package:camera/camera.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fitcraft/features/scan/domain/body_measurements.dart';
 import 'package:fitcraft/features/scan/domain/body_scan_service.dart';
+import 'package:fitcraft/features/scan/state/body_scan_error_mapper.dart';
 
-/// Provides a global instance of BodyScanService
+/// Provides a shared body-scan service instance for scan workflows.
 final bodyScanServiceProvider = Provider<BodyScanService>((ref) {
   final service = BodyScanService();
-  ref.onDispose(() => service.dispose());
+  ref.onDispose(service.dispose);
   return service;
 });
 
@@ -20,7 +21,8 @@ class BodyScanState {
     this.measurements,
     this.error,
   });
-  
+
+  /// Creates a new state with updated scan status and result values.
   BodyScanState copyWith({
     bool? isScanning,
     BodyMeasurements? measurements,
@@ -29,7 +31,7 @@ class BodyScanState {
     return BodyScanState(
       isScanning: isScanning ?? this.isScanning,
       measurements: measurements ?? this.measurements,
-      error: error, // Can deliberately nullify error
+      error: error,
     );
   }
 }
@@ -38,6 +40,7 @@ class BodyScanNotifier extends Notifier<BodyScanState> {
   @override
   BodyScanState build() => const BodyScanState();
 
+  /// Runs body-measurement analysis for a captured front and side photo.
   Future<bool> startAnalysis({
     required XFile frontPhoto,
     required XFile sidePhoto,
@@ -54,23 +57,23 @@ class BodyScanNotifier extends Notifier<BodyScanState> {
       state = state.copyWith(
         isScanning: false,
         measurements: results,
+        error: null,
       );
-      
       return true;
-    } catch (e) {
+    } catch (error) {
       state = state.copyWith(
         isScanning: false,
-        error: e.toString(),
+        error: mapBodyScanError(error),
       );
       return false;
     }
   }
 
+  /// Resets the scan flow back to its initial empty state.
   void reset() {
     state = const BodyScanState();
   }
 }
 
-final bodyScanNotifierProvider = NotifierProvider<BodyScanNotifier, BodyScanState>(() {
-  return BodyScanNotifier();
-});
+final bodyScanNotifierProvider =
+    NotifierProvider<BodyScanNotifier, BodyScanState>(BodyScanNotifier.new);

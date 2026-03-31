@@ -55,11 +55,12 @@ Then paste whichever weekly task prompt you need (from the project document).
 
 When working on a task, the agent should read skills in this order:
 
-1. `flutter-riverpod-patterns.md` — **always read first** for any Flutter code
-2. The feature-specific skill (e.g. `mlkit-measurements.md` for scanning)
-3. `supabase-firebase-split.md` — whenever data storage is involved
-4. `bangladesh-context.md` — whenever pricing or payments come up
-5. `fastapi-backend.md` — only when working on the Python backend
+1. `project-operating-rules.md` — **always read first** for all FitCraft coding work
+2. `flutter-riverpod-patterns.md` — for any Flutter UI, widget, state, or notifier work
+3. The feature-specific skill (e.g. `mlkit-measurements.md` for scanning)
+4. `supabase-firebase-split.md` — whenever data storage is involved
+5. `bangladesh-context.md` — whenever pricing or payments come up
+6. `fastapi-backend.md` — only when working on the Python backend
 
 ---
 

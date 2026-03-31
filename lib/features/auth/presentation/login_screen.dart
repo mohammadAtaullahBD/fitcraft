@@ -1,13 +1,15 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:fitcraft/app/router.dart';
 import 'package:fitcraft/core/utils/theme.dart';
-import 'package:fitcraft/features/auth/domain/auth_repository.dart'
-    show AuthFeedbackException;
-import 'package:fitcraft/features/auth/state/auth_provider.dart';
+import 'package:fitcraft/features/auth/presentation/auth_feedback.dart';
+import 'package:fitcraft/features/auth/presentation/auth_strings.dart';
+import 'package:fitcraft/features/auth/presentation/auth_validation.dart';
+import 'package:fitcraft/features/auth/presentation/auth_widgets.dart';
+import 'package:fitcraft/features/auth/state/auth_action_state.dart';
+import 'package:fitcraft/features/auth/state/auth_form_notifier.dart';
 
 /// Premium dark-themed login screen.
 class LoginScreen extends ConsumerStatefulWidget {
@@ -23,7 +25,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _isLoading = false;
 
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
@@ -50,53 +51,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
+  /// Starts email/password sign-in if the form is valid.
   Future<void> _signInWithEmail() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
-
-    try {
-      await ref.read(authRepositoryProvider).signInWithEmail(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
-      // Router redirect will handle navigation.
-    } on FirebaseAuthException catch (e) {
-      _showError('${AuthFeedbackException.friendlyMessage(e.code)} (${e.message})');
-    } catch (e) {
-      _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    await ref.read(authFormNotifierProvider.notifier).signInWithEmail(
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
+        );
   }
 
+  /// Starts the Google sign-in flow.
   Future<void> _signInWithGoogle() async {
-    setState(() => _isLoading = true);
-    try {
-      await ref.read(authRepositoryProvider).signInWithGoogle();
-    } on FirebaseAuthException catch (e) {
-      _showError('${AuthFeedbackException.friendlyMessage(e.code)} (${e.message})');
-    } catch (e) {
-      _showError(e.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
+    await ref.read(authFormNotifierProvider.notifier).signInWithGoogle();
   }
 
+  /// Displays an auth-related error snackbar.
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.error,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    showAuthErrorFeedback(context, message);
   }
 
   @override
   Widget build(BuildContext context) {
+    final authActionState = ref.watch(authFormNotifierProvider);
+    final isLoading = authActionState.maybeWhen(
+      loading: () => true,
+      orElse: () => false,
+    );
+
+    ref.listen<AuthActionState>(authFormNotifierProvider, (previous, next) {
+      next.whenOrNull(error: _showError);
+    });
+
     return Scaffold(
       body: SafeArea(
         child: FadeTransition(
@@ -109,27 +95,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // ─── Logo / Branding ─────────────────────────
                     _buildLogo(),
                     const SizedBox(height: 48),
-
-                    // ─── Email Field ─────────────────────────────
                     _buildEmailField(),
                     const SizedBox(height: 16),
-
-                    // ─── Password Field ──────────────────────────
                     _buildPasswordField(),
                     const SizedBox(height: 8),
-
-                    // ─── Forgot Password ─────────────────────────
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () =>
-                            context.push(AppRoutes.forgotPassword),
+                        onPressed: () => context.push(AppRoutes.forgotPassword),
                         child: Text(
-                          'Forgot Password?',
-                          style: TextStyle(
+                          AuthStrings.forgotPassword,
+                          style: const TextStyle(
                             color: AppTheme.accent,
                             fontWeight: FontWeight.w500,
                           ),
@@ -137,38 +115,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // ─── Login Button ────────────────────────────
-                    _buildLoginButton(),
+                    _buildLoginButton(isLoading),
                     const SizedBox(height: 20),
-
-                    // ─── Divider ─────────────────────────────────
-                    _buildDivider(),
+                    const AuthDivider(label: AuthStrings.continueWithDivider),
                     const SizedBox(height: 20),
-
-                    // ─── Google Sign-In ──────────────────────────
-                    _buildGoogleButton(),
+                    _buildGoogleButton(isLoading),
                     const SizedBox(height: 32),
-
-                    // ─── Sign Up Link ────────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "Don't have an account? ",
-                          style: TextStyle(color: AppTheme.textSecondary),
-                        ),
-                        GestureDetector(
-                          onTap: () => context.push(AppRoutes.signup),
-                          child: Text(
-                            'Sign Up',
-                            style: TextStyle(
-                              color: AppTheme.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
+                    AuthFooterLink(
+                      prompt: AuthStrings.noAccountPrompt,
+                      actionLabel: AuthStrings.signUp,
+                      onTap: () => context.push(AppRoutes.signup),
                     ),
                   ],
                 ),
@@ -180,8 +136,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  // ─── Sub-widgets ────────────────────────────────────────────────
-
+  /// Builds the branded FitCraft logo/header block.
   Widget _buildLogo() {
     return Column(
       children: [
@@ -207,7 +162,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         const SizedBox(height: 20),
         Text(
-          'FitCraft',
+          AuthStrings.appName,
           style: GoogleFonts.outfit(
             fontSize: 32,
             fontWeight: FontWeight.w800,
@@ -216,7 +171,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         const SizedBox(height: 6),
         Text(
-          'Your Perfect Fit, Crafted by AI',
+          AuthStrings.appTagline,
           style: GoogleFonts.outfit(
             fontSize: 14,
             color: AppTheme.textSecondary,
@@ -227,6 +182,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  /// Builds the email input field.
   Widget _buildEmailField() {
     return TextFormField(
       controller: _emailController,
@@ -234,20 +190,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       textInputAction: TextInputAction.next,
       style: const TextStyle(color: AppTheme.textPrimary),
       decoration: const InputDecoration(
-        hintText: 'Email address',
+        hintText: AuthStrings.emailHint,
         prefixIcon: Icon(Icons.email_outlined, color: AppTheme.textSecondary),
       ),
-      validator: (value) {
-        if (value == null || value.trim().isEmpty) return 'Email is required';
-        if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$')
-            .hasMatch(value.trim())) {
-          return 'Enter a valid email';
-        }
-        return null;
-      },
+      validator: validateEmail,
     );
   }
 
+  /// Builds the password input field.
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
@@ -256,7 +206,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       onFieldSubmitted: (_) => _signInWithEmail(),
       style: const TextStyle(color: AppTheme.textPrimary),
       decoration: InputDecoration(
-        hintText: 'Password',
+        hintText: AuthStrings.passwordHint,
         prefixIcon:
             const Icon(Icons.lock_outline, color: AppTheme.textSecondary),
         suffixIcon: IconButton(
@@ -269,90 +219,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) return 'Password is required';
-        if (value.length < 6) return 'Password must be at least 6 characters';
-        return null;
-      },
+      validator: validateLoginPassword,
     );
   }
 
-  Widget _buildLoginButton() {
-    return SizedBox(
-      width: double.infinity,
-      height: 56,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: AppTheme.primaryGradient,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primary.withValues(alpha: 0.3),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: ElevatedButton(
-          onPressed: _isLoading ? null : _signInWithEmail,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-          ),
-          child: _isLoading
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.white,
-                  ),
-                )
-              : Text(
-                  'Log In',
-                  style: GoogleFonts.outfit(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                  ),
-                ),
-        ),
-      ),
+  /// Builds the primary login button.
+  Widget _buildLoginButton(bool isLoading) {
+    return AuthPrimaryButton(
+      isLoading: isLoading,
+      onPressed: _signInWithEmail,
+      label: AuthStrings.logIn,
     );
   }
 
-  Widget _buildDivider() {
-    return Row(
-      children: [
-        Expanded(
-          child: Container(height: 1, color: AppTheme.surfaceLight),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(
-            'or continue with',
-            style: TextStyle(
-              color: AppTheme.textSecondary,
-              fontSize: 13,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Container(height: 1, color: AppTheme.surfaceLight),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildGoogleButton() {
+  /// Builds the Google sign-in button.
+  Widget _buildGoogleButton(bool isLoading) {
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: OutlinedButton.icon(
-        onPressed: _isLoading ? null : _signInWithGoogle,
+        onPressed: isLoading ? null : _signInWithGoogle,
         icon: Image.network(
           'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg',
           width: 22,
@@ -361,7 +247,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               const Icon(Icons.g_mobiledata, size: 28),
         ),
         label: Text(
-          'Continue with Google',
+          AuthStrings.continueWithGoogle,
           style: GoogleFonts.outfit(
             fontSize: 15,
             fontWeight: FontWeight.w600,
@@ -369,7 +255,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           ),
         ),
         style: OutlinedButton.styleFrom(
-          side: BorderSide(
+          side: const BorderSide(
             color: AppTheme.surfaceLight,
             width: 1.5,
           ),
