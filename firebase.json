@@ -1,0 +1,1 @@
+{"flutter":{"platforms":{"android":{"default":{"projectId":"fitcraft-ata","appId":"1:656026156984:android:d0fcff9872899e5d64994d","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"fitcraft-ata","configurations":{"android":"1:656026156984:android:d0fcff9872899e5d64994d","ios":"1:656026156984:ios:18538ae3ac7a391264994d"}}}}}}

@@ -18,9 +18,9 @@ class AppConstants {
   // API token is loaded from environment / secure storage at runtime.
 
   // ─── Supabase ──────────────────────────────────────────────────
-  // These will be populated from environment config.
-  static const String supabaseUrl = '';
-  static const String supabaseAnonKey = '';
+  static const String supabaseUrl = 'https://zvewegxvwwgzaoikejfe.supabase.co';
+  static const String supabaseAnonKey =
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2ZXdlZ3h2d3dnemFvaWtlamZlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NzI0NzcsImV4cCI6MjA4OTA0ODQ3N30.zgOJjRPewM2D4VVJ3cmunTQDqDD5IeMWOH5yyhL5nJc';
 
   // ─── Storage Buckets ───────────────────────────────────────────
   static const String scanImagesBucket = 'scan-images';

@@ -10,7 +10,10 @@ void main() {
       ),
     );
 
-    // Verify the app renders the Scan tab by default.
-    expect(find.text('Scan'), findsOneWidget);
+    // Give the router time to redirect to the login screen since the user isn't authenticated
+    await tester.pumpAndSettle();
+
+    // Verify the app renders the Login screen since we are unauthenticated.
+    expect(find.text('Log In'), findsWidgets);
   });
 }

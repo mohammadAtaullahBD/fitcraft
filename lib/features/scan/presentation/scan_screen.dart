@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:fitcraft/app/router.dart';
 import 'package:fitcraft/core/utils/theme.dart';
 
 /// Body scan feature — main entry screen.
@@ -49,7 +51,7 @@ class ScanScreen extends ConsumerWidget {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      // TODO: Navigate to camera capture
+                      context.push(AppRoutes.scanCamera);
                     },
                     icon: const Icon(Icons.camera_alt),
                     label: const Text('Start Scanning'),
